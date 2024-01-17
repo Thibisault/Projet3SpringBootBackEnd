@@ -31,6 +31,9 @@ public class RentalsController {
         Map<String, List<Rental>> listRental = new HashMap<>();
 
         List<Rental> rentals = rentalService.getAllRentals();
+
+
+
         listRental.put("rentals", rentals);
         return new ResponseEntity<>(listRental, HttpStatus.OK);
     }

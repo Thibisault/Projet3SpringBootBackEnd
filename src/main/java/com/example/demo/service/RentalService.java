@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.entity.Rental;
 import com.example.demo.repository.RentalRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,11 +18,22 @@ import java.util.Optional;
 
 @Service
 public class RentalService {
+
     @Autowired
     private RentalRepository rentalRepository;
 
+    @Value("${server.port}")
+    private String port;
+
     public List<Rental> getAllRentals() {
-        return rentalRepository.findAll();
+
+        List<Rental> rentalList = rentalRepository.findAll();
+        for (Rental rental : rentalList){
+            String picturePath = "";
+            picturePath = rental.getPicture();
+            rental.setPicture(port +"/"+picturePath);
+        }
+        return rentalList;
     }
 
     public Rental getRentalById(Long id) {
