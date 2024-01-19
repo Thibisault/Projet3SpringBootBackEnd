@@ -41,7 +41,6 @@ public class SpringSecurityConfig {
                         .antMatchers("/api/auth/login", "/api/auth/register", "/uploads/**").permitAll()
                         .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .build();
     }
