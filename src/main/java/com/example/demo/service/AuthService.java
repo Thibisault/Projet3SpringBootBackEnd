@@ -8,6 +8,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
+
 @Service
 public class AuthService {
 
@@ -16,6 +18,9 @@ public class AuthService {
 
     public UserEntity registerUser(UserEntity user) {
         if (userRepository.findByEmail(user.getEmail()) == null){
+            Date actualDate = new Date();
+            user.setCreated_at(actualDate);
+            user.setUpdated_at(actualDate);
             return userRepository.save(user);
         }
         return null;
@@ -31,11 +36,6 @@ public class AuthService {
             String email = ((JwtAuthenticationToken) principal).getName();
             return userRepository.findByEmail(email);
         }
-        return null;
-    }
-
-    public UserEntity getAuthenticatedUser() {
-
         return null;
     }
 }

@@ -1,10 +1,16 @@
 package com.example.demo.controller;
 
 import com.example.demo.entity.Rental;
+import com.example.demo.entity.RentalDTO;
+import com.example.demo.entity.TokenDTO;
 import com.example.demo.entity.UserEntity;
 import com.example.demo.service.AuthService;
 import com.example.demo.service.RentalService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -18,36 +24,44 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("api/rentals")
+@SecurityRequirement(name = "Bearer Authentication")
+@Tag(name = "rental", description = "API pour la manipulation des rentals, créer, afficher, update")
 public class RentalsController {
 
-    @Autowired
-    RentalService rentalService;
+    @Value("${server.port}")
+    private String port;
+
+    @Value("${APP_DB_HOST}")
+    private String host;
 
     @Autowired
-    AuthService authService;
+    private RentalService rentalService;
 
+    @Autowired
+    private AuthService authService;
+
+    @Operation(summary = "Récupérer tout les rentals", description = "Permet de récupérer tout les rentals et des les envoyer en format json")
     @GetMapping
     public ResponseEntity<Map<String, List<Rental>>> getAllRentals() {
-        Map<String, List<Rental>> listRental = new HashMap<>();
 
-        List<Rental> rentals = rentalService.getAllRentals();
-
-
-
-        listRental.put("rentals", rentals);
-        return new ResponseEntity<>(listRental, HttpStatus.OK);
+        RentalDTO rentalDTO = new RentalDTO();
+        rentalDTO.setListRental(rentalService.getAllRentals());
+        return new ResponseEntity<>(rentalDTO.getAllRental(), HttpStatus.OK);
     }
 
+    @Operation(summary = "Récupérer un rental par son id", description = "Récupère un rental et avant de le renvoyer, modifie sa variable String picture, pour adapter sa route en fonction du port utilisé")
     @GetMapping("/{id}")
     public ResponseEntity<Rental> getRentalById(@PathVariable Long id) {
         Rental rental = rentalService.getRentalById(id);
         if (rental != null) {
+            rental.setPicture(host+port +"/"+rental.getPicture());
             return new ResponseEntity<>(rental, HttpStatus.OK);
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
 
+    @Operation(summary = "Créer un nouveau rental", description = "Récupère tout les paramètre de création puis créer un new rental en appelant une méthohde permettant d'extraire le nom de l'image puis de créer une route après avoir enrigistrer l'image récupérer dans un dossier à la racine 'uploads'")
     @PostMapping
     public ResponseEntity<?> createRental( @RequestParam("name") String name,
                                            @RequestParam("surface") int surface,
@@ -55,37 +69,13 @@ public class RentalsController {
                                            @RequestParam("picture") MultipartFile picture,
                                            @RequestParam("description") String description) {
 
-        Date actualDate = new Date();
-
-        // Ici extraire l'utilisateur actuel à partir du token JWT
-        UserEntity currentUser = authService.getCurrentUser();
-
-        Rental rental = new Rental();
-
-        rental.setCreated_at(actualDate);
-        rental.setUpdated_at(actualDate);
-
-        rental.setName(name);
-        rental.setSurface(surface);
-        rental.setPrice(price);
-
-        if (!picture.isEmpty()) {
-            String picturePath = rentalService.saveFile(picture);
-            rental.setPicture(picturePath);
-        }
-
-        rental.setDescription(description);
-
-        rental.setOwner_id(currentUser.getId());
-
-        rentalService.createRental(rental);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Rental created!");
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        rentalService.createRental(name,surface,price,picture,description);
+        RentalDTO rentalDTO = new RentalDTO();
+        rentalDTO.setMessageGeneration("Rental created!");
+        return new ResponseEntity<>(rentalDTO.createUpdateRentalMessage(), HttpStatus.CREATED);
     }
 
-
+    @Operation(summary = "Mettre à  jour un rental", description = "Récupère un rental grâce à son id, puis affiche un formulaire de mise à jour pour ce rental")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateRental(@PathVariable Long id,
                                                @RequestParam("name") String name,
@@ -93,29 +83,18 @@ public class RentalsController {
                                                @RequestParam("price") double price,
                                                @RequestParam("description") String description) {
 
-        System.out.println("Update rentals");
-
         Rental rental = rentalService.getRentalById(id);
+        boolean updated = rentalService.updateRental(id, rental, name, surface, price, description);
 
-        Date actualDate = new Date();
-        rental.setUpdated_at(actualDate);
-
-        rental.setName(name);
-        rental.setSurface(surface);
-        rental.setPrice(price);
-        rental.setDescription(description);
-
-        boolean updated = rentalService.updateRental(id, rental);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Rental updated!");
-        Map<String, String> responseFalse = new HashMap<>();
-        responseFalse.put("message", "Rental not found!");
+        RentalDTO acceptedUpdateRentalDTO = new RentalDTO();
+        acceptedUpdateRentalDTO.setMessageGeneration("Rental updated!");
+        RentalDTO notFoundUpdateRentalDTO = new RentalDTO();
+        notFoundUpdateRentalDTO.setMessageGeneration("Rental not found!");
 
         if (updated) {
-            return new ResponseEntity<>(response, HttpStatus.OK);
+            return new ResponseEntity<>(acceptedUpdateRentalDTO, HttpStatus.OK);
         } else {
-            return new ResponseEntity<>(responseFalse, HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(notFoundUpdateRentalDTO, HttpStatus.NOT_FOUND);
         }
     }
 

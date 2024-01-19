@@ -1,9 +1,13 @@
 package com.example.demo.controller;
 
+import com.example.demo.entity.TokenDTO;
 import com.example.demo.entity.UserEntity;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JWTService;
 import com.example.demo.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +20,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 @Controller
 @RequestMapping("api/auth")
+@SecurityRequirement(name = "Bearer Authentication")
+@Tag(name = "auth", description = "API pour gerer les utilisateurs")
 public class AuthController {
 
     @Autowired
@@ -28,43 +35,44 @@ public class AuthController {
     private JWTService jwtService;
 
     @Autowired
-    UserRepository userRepository;
+    private UserRepository userRepository;
 
     public AuthController(JWTService jwtService) {
         this.jwtService = jwtService;
     }
 
+    @Operation(summary = "Créer un compte")
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody UserEntity user) {
-        Date actualDate = new Date();
-
-        user.setCreated_at(actualDate);
-        user.setUpdated_at(actualDate);
+    public ResponseEntity<Map<String, String>> register(@RequestBody UserEntity user) {
 
         UserEntity registeredUser = authService.registerUser(user);
-
         if (registeredUser != null){
-            String token = jwtService.generateToken(registeredUser);
-            return new ResponseEntity<>(("{ \"token\": \"" + token+"\" }"), HttpStatus.CREATED);
+            TokenDTO tokenDTO = new TokenDTO();
+            tokenDTO.setGenerateToken(jwtService.generateToken(registeredUser));
+            return new ResponseEntity<>(tokenDTO.getTokenMap(), HttpStatus.CREATED);
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
     }
 
+    @Operation(summary = "se connecter")
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         String password = request.get("password");
 
         UserEntity authenticatedUser = authService.loginUser(email, password);
         if (authenticatedUser != null) {
-            String token = jwtService.generateToken(authenticatedUser);
-            return ResponseEntity.ok("{ \"token\": \"" + token+"\" }");
+
+            TokenDTO tokenDTO = new TokenDTO();
+            tokenDTO.setGenerateToken(jwtService.generateToken(authenticatedUser));
+            return new ResponseEntity<>(tokenDTO.getTokenMap(), HttpStatus.CREATED);
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
     }
 
+    @Operation(summary = "Récupérer les informations relative en base de donnée de l'utilisateur courant")
     @GetMapping("/me")
     public ResponseEntity<UserEntity> getAuthenticatedUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication();
@@ -75,6 +83,5 @@ public class AuthController {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
     }
-
 
 }

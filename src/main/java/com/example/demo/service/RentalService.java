@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.Rental;
+import com.example.demo.entity.UserEntity;
 import com.example.demo.repository.RentalRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,13 +27,19 @@ public class RentalService {
     @Value("${server.port}")
     private String port;
 
+    @Value("${APP_DB_HOST}")
+    private String host;
+
+    @Autowired
+    private AuthService authService;
+
     public List<Rental> getAllRentals() {
 
         List<Rental> rentalList = rentalRepository.findAll();
         for (Rental rental : rentalList){
             String picturePath = "";
             picturePath = rental.getPicture();
-            rental.setPicture(port +"/"+picturePath);
+            rental.setPicture(host+port +"/"+picturePath);
         }
         return rentalList;
     }
@@ -41,13 +49,39 @@ public class RentalService {
         return optionalRental.orElse(null);
     }
 
-    public Rental createRental(Rental rental) {
+    public Rental createRental(String name, int surface, double price, MultipartFile picture, String description) {
+
+        Date actualDate = new Date();
+        Rental rental = new Rental();
+        // Ici extraire l'utilisateur actuel à partir du token JWT
+        UserEntity currentUser = authService.getCurrentUser();
+
+        rental.setCreated_at(actualDate);
+        rental.setUpdated_at(actualDate);
+        rental.setName(name);
+        rental.setSurface(surface);
+        rental.setPrice(price);
+
+        if (!picture.isEmpty()) {
+            String picturePath = this.saveFile(picture);
+            rental.setPicture(picturePath);
+        }
+        rental.setDescription(description);
+        rental.setOwner_id(currentUser.getId());
         return rentalRepository.save(rental);
     }
 
-    public boolean updateRental(Long id, Rental rental) {
+    public boolean updateRental(Long id, Rental rental, String name, int surface, double price, String description) {
         Optional<Rental> optionalRental = rentalRepository.findById(id);
         if (optionalRental.isPresent()) {
+            Date actualDate = new Date();
+
+            rental.setUpdated_at(actualDate);
+            rental.setName(name);
+            rental.setSurface(surface);
+            rental.setPrice(price);
+            rental.setDescription(description);
+
             rentalRepository.save(rental);
             return true;
         }

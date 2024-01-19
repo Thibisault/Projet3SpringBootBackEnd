@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 public class MessageService {
 
     @Autowired
-    MessageRepository messageRepository;
+    private MessageRepository messageRepository;
 
     public Message createMessage(Message message) {
         return messageRepository.save(message);
